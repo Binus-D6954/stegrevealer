@@ -7,6 +7,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torchvision import transforms
+import math
+from lsb import LSBSteg
+from bpcs import BPCS
+from pvd import PVD
+import cv2
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 NUM_CLASSES = 4
@@ -222,13 +227,82 @@ class RGBRevealer:
         result = Image.fromarray(lsb_image)
         result.save(output_path)
 
+def psnr(img1, img2):
+	rms = math.sqrt(np.sum((img1.astype('float') - img2.astype('float')) ** 2) / (img1.shape[1] * img1.shape[0]))
+	return 20 * math.log10(256 / rms)
+
+def blocks_to_text(blocks):
+    all_bits = ""
+    for block in blocks:
+        for bit in block.flatten():
+            all_bits += str(int(bit))
+
+    chars = []
+    for i in range(0, len(all_bits), 8):
+        byte = all_bits[i:i+8]
+        if len(byte) < 8: break
+        
+        val = int(byte, 2)
+        if val == 0:
+            break
+        chars.append(chr(val))
+        
+    return "".join(chars)
+
+
+class MessageRevealer:
+    ALGO_LSB = 'LSB'
+    ALGO_BPCS = 'BPCS'
+    ALGO_PVD = 'PVD'
+
+    width = 0
+    height = 0
+
+    @staticmethod
+    def reveal_message(algorithm, image_obj):
+        MessageRevealer.height, MessageRevealer.width = image_obj.shape[0], image_obj.shape[1]
+
+        hidden_message = ''
+        if algorithm == MessageRevealer.ALGO_LSB:
+            hidden_message = MessageRevealer.reveal_lsb_message(image_obj)
+        elif algorithm == MessageRevealer.ALGO_BPCS:
+            hidden_message = MessageRevealer.reveal_bpcs_message(image_obj)
+        elif algorithm == MessageRevealer.ALGO_PVD:
+            hidden_message = MessageRevealer.reveal_pvd_message(image_obj)
+        else:
+            hidden_message = "Unrecognized algorithm or undetected hidden message..."
+            print(hidden_message)
+            
+        return hidden_message
+
+    @staticmethod
+    def reveal_lsb_message(image_obj):
+        lsbSteg = LSBSteg(image_obj)
+        result = lsbSteg.decode_binary()
+        print(result)
+        
+        return result.decode('utf-8')
+
+    @staticmethod
+    def reveal_bpcs_message(image_obj):
+        bpcsSteg = BPCS(image_obj)
+        result = blocks_to_text(bpcsSteg.show())
+        print(result)
+        
+        return result
+
+    @staticmethod
+    def reveal_pvd_message(image_obj):
+        pass
+
+
 class SteganographyDetectorApp:
     """Application class to show simple app design to do steganalysis"""
     def __init__(self, root):
         self.root = root
         self.root.title("Steganography Detection App")
-        self.root.geometry("600x700")
-        self.root.resizable(False, False) 
+        self.root.minsize(600, 700)
+        self.root.resizable(True, True) 
 
         self.display_max_size = (426, 240)
         self.current_image_path = None
@@ -255,12 +329,12 @@ class SteganographyDetectorApp:
             self.root, 
             text="Upload an image to detect", 
             font=("Helvetica", 16, "bold"),
-            pady=20
+            pady=10
         )
         header_label.pack()
 
         button_frame = tk.Frame(self.root)
-        button_frame.pack(pady=10)
+        button_frame.pack(pady=5)
         
         self.upload_btn = tk.Button(
             button_frame, 
@@ -291,11 +365,24 @@ class SteganographyDetectorApp:
             text="Detection results will appear here...", 
             font=("Courier", 14),
             bg="#f0f0f0",
+            fg="black",
             wraplength=550,
             relief=tk.SUNKEN,
-            pady=20
+            pady=5
         )
-        self.result_label.pack(fill=tk.X, padx=20, pady=(0, 20))
+        self.result_label.pack(fill=tk.X, padx=20, pady=(0, 5))
+
+        self.message_extracted = tk.Label(
+            self.root, 
+            text="Message extracted will appear here...", 
+            font=("Courier", 14),
+            bg="#f0f0f0",
+            fg="black",
+            wraplength=550,
+            relief=tk.SUNKEN,
+            pady=5
+        )
+        self.message_extracted.pack(fill=tk.X, padx=20, pady=(0, 5))
 
     def upload_image(self):
         """Handles the file dialog and image loading process."""
@@ -378,8 +465,12 @@ class SteganographyDetectorApp:
             confidence = prob[idx] * 100
 
             prediction_text = f"Prediction: {predicted} ({confidence:.1f}%)"
+            
+            raw_image = cv2.imread(image_path)
+            hidden_message = MessageRevealer.reveal_message(predicted, raw_image)
 
         self.result_label.config(text=prediction_text, fg="black")
+        self.message_extracted.config(text=hidden_message, fg="black")
 
 
 if __name__ == "__main__":
