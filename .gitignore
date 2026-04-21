@@ -4,3 +4,4 @@ embed/
 !temp/.gitkeep
 temp/*
 srnet_best.pth
+Inference/models
