@@ -1,0 +1,52 @@
+{
+    "dataset": {
+        "name": "BOSSbase 1.01 (converted to NPY)",
+        "resolution": [
+            256,
+            256
+        ],
+        "payload_bpp": 0.4,
+        "classes": [
+            "CLEAN",
+            "LSB",
+            "PVD",
+            "BPCS"
+        ],
+        "num_classes": 4,
+        "train_samples": 28800,
+        "val_samples": 3600,
+        "test_samples": 3600
+    },
+    "model": {
+        "name": "SRNet",
+        "total_params": 14940612,
+        "srm_threshold": 3.0
+    },
+    "training": {
+        "batch_size": 96,
+        "learning_rate": 0.001,
+        "optimizer": "Adam",
+        "scheduler": "ReduceLROnPlateau(patience=5, factor=0.5)",
+        "loss_function": "CrossEntropyLoss",
+        "max_epochs": 50,
+        "early_stopping_patience": 10,
+        "best_val_accuracy": 0.9972222222222222,
+        "best_val_epoch": 46,
+        "final_train_loss": 0.0022315217755205672,
+        "final_val_loss": 0.011235986793488244,
+        "total_time_seconds": 15255.8194,
+        "total_time_minutes": 254.26
+    },
+    "results": {
+        "test_accuracy": 0.9969444444444444,
+        "test_error_rate": 0.003055555555555589
+    },
+    "environment": {
+        "device": "cuda",
+        "gpu_name": "NVIDIA A100-SXM4-80GB",
+        "pytorch_version": "2.10.0+cu128",
+        "python_version": "3.8.0",
+        "notebook": "SRNet_4class_payload04.ipynb",
+        "timestamp_end": "2026-04-13 13:45:15"
+    }
+}
